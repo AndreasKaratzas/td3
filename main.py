@@ -1,19 +1,30 @@
+
+import sys
+sys.path.append('./')
+
 import gym
- 
-from src.agent import Agent
+import argparse
+
+import src.core as core
+
+from src.agent import td3
+from utils.run_utils import setup_logger_kwargs
 
 
-env = gym.make("MountainCarContinuous-v0")
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
+    parser.add_argument('--hid', type=int, default=256)
+    parser.add_argument('--l', type=int, default=2)
+    parser.add_argument('--gamma', type=float, default=0.99)
+    parser.add_argument('--seed', '-s', type=int, default=0)
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--exp_name', type=str, default='td3')
+    args = parser.parse_args()
 
-model = Agent(env)
-model.learn()
+    logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
-obs = env.reset()
-for i in range(1000):
-    action, _states = model.predict(obs, deterministic=True)
-    obs, reward, done, info = env.step(action)
-    env.render()
-    if done:
-      obs = env.reset()
-
-env.close()
+    td3(lambda: gym.make(args.env), actor_critic=core.MLPActorCritic,
+        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
+        gamma=args.gamma, seed=args.seed, epochs=args.epochs,
+        logger_kwargs=logger_kwargs)
