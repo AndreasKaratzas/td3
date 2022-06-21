@@ -3,28 +3,55 @@ import sys
 sys.path.append('./')
 
 import gym
-import argparse
 
-import src.core as core
-
-from src.agent import td3
-from utils.run_utils import setup_logger_kwargs
+from utils.msg import info
+from lib.agent import Agent
+from src.train import train
+from src.args import arguments
+from src.model import MLPActorCritic
+from utils.logger import HardLogger
+from utils.functions import parse_configs, update_args
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='MountainCarContinuous-v0')
-    parser.add_argument('--hid', type=int, default=256)
-    parser.add_argument('--l', type=int, default=2)
-    parser.add_argument('--gamma', type=float, default=0.99)
-    parser.add_argument('--seed', '-s', type=int, default=0)
-    parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--exp_name', type=str, default='td3')
-    args = parser.parse_args()
+    # parse arguments
+    args = arguments()
+    if args.info:
+        info()
+    
+    if args.config:
+        settings = parse_configs(filepath=args.config)
+        args = update_args(args, settings)
+        args.export_configs = False
+    else:
+        args.export_configs = True
+    
+    logger = HardLogger(
+        output_dir=args.checkpoint_dir, 
+        output_fname=args.logger_name, 
+        exp_name=args.name
+    )
 
-    logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
+    logger.print_training_message(
+        agent="TD3 with " + ("Priority Experience Replay" if args.buffer_arch == 'priority' else "Random Experience Replay") + " and " + args.arch.upper() + " core", 
+        env_id=args.env, epochs=args.epochs, device=args.device, elite_metric=args.elite_criterion, 
+        auto_save=(args.elite_criterion.lower() != 'none'))
+    
+    # create RL environment
+    env = gym.make(args.env)
 
-    td3(lambda: gym.make(args.env), actor_critic=core.MLPActorCritic,
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
-        gamma=args.gamma, seed=args.seed, epochs=args.epochs,
-        logger_kwargs=logger_kwargs)
+    # create the TD3 agent
+    agent = Agent(env=env, env_id=args.env, actor_critic=MLPActorCritic, arch=args.arch, activation=args.activation, 
+                  seed=args.seed, prior_eps=args.prior_eps, learning_starts=args.learning_starts, beta=args.beta,
+                  epochs=args.epochs, replay_size=args.replay_size, gamma=args.gamma, gradient_steps=args.gradient_steps,
+                  polyak=args.polyak, auto_save=args.auto_save, elite_criterion=args.elite_criterion, name=args.name,
+                  lr_actor=args.lr_actor, lr_critic=args.lr_critic, batch_size=args.batch_size, alpha=args.alpha,
+                  demo_episodes=args.demo_episodes, max_ep_len=args.max_ep_len, logger=logger, hidden_sizes=args.hidden_sizes,
+                  checkpoint_freq=args.checkpoint_freq, debug_mode=args.debug_mode, checkpoint_dir=logger.model_dir,
+                  device=args.device, export_configs=args.export_configs, load_checkpoint=args.load_checkpoint,
+                  mu=args.mu, sigma=args.sigma, noise_dist=args.noise_dist, theta=args.theta, buffer_arch=args.buffer_arch,
+                  target_noise=args.target_noise, noise_clip=args.noise_clip, policy_delay=args.policy_delay,
+                  steps_per_epoch=args.steps_per_epoch, update_every=args.update_every)
+
+    # train agent
+    train(agent=agent)

@@ -1,8 +1,11 @@
 
-from abc import ABC, abstractmethod
-from typing import Optional
+import sys
+sys.path.append('../')
 
 import numpy as np
+
+from abc import ABC, abstractmethod
+from typing import Optional, Tuple
 
 
 class ActionNoise(ABC):
@@ -22,6 +25,23 @@ class ActionNoise(ABC):
     @abstractmethod
     def __call__(self) -> np.ndarray:
         raise NotImplementedError()
+
+
+class UniformActionNoise(ActionNoise):
+    """
+    A random uniform noise generator based on NumPy
+    """
+    def __init__(self, low: float, high: float, size: Tuple[int]):
+        self.low = low
+        self.high = high
+        self.size = size
+        super().__init__()
+
+    def __call__(self) -> np.ndarray:
+        return np.random.uniform(self.low, self.high, self.size)
+
+    def __repr__(self) -> str:
+        return f"UniformActionNoise(low={self.low}, high={self.high}, size={self.size})"
 
 
 class NormalActionNoise(ActionNoise):
