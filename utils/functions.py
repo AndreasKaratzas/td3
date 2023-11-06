@@ -42,8 +42,6 @@ def activation2str(activation: nn.Module):
 
 
 def _seed(env: gym.Env, device: torch.device, seed: int = 0):
-    # set random seeds for reproduce
-    env.seed(seed)
     # Seed python RNG
     random.seed(seed)
     # Seed numpy RNG
