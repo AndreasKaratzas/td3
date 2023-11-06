@@ -20,6 +20,7 @@ pip install pyyaml
 conda install pandas
 conda install matplotlib
 pip install psutil
+pip install torchtnt
 ```
 
 ### Usage
