@@ -1,5 +1,5 @@
 
-# Odysseus: TD3
+# TD3
 
 ### Abstract
 
