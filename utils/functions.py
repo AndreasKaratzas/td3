@@ -3,7 +3,7 @@ import sys
 sys.path.append('../')
 
 import re
-import gym
+import gymnasium as gym
 import yaml
 import torch
 import random

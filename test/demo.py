@@ -2,16 +2,16 @@
 import sys
 sys.path.append('../')
 
-import gym
+import gymnasium as gym
 
-from gym.wrappers import Monitor
+from gymnasium.wrappers import Monitor
 
 from src.test import test
-from utils.msg import info
 from lib.agent import Agent
 from src.args import arguments
-from src.model import MLPActorCritic
 from utils.logger import HardLogger
+from src.model import MLPActorCritic
+from utils.msg import info, print_test_message
 from utils.functions import parse_configs, update_args
 
 
@@ -31,17 +31,19 @@ if __name__ == '__main__':
     logger = HardLogger(
         output_dir=args.checkpoint_dir,
         output_fname=args.logger_name,
-        exp_name=args.name
+        exp_name=args.name,
+        demo=True
     )
 
-    logger.print_test_message(
+    print_test_message(
         agent="TD3 with " + ("Priority Experience Replay" if args.buffer_arch ==
                              'priority' else "Random Experience Replay") + " and " + args.arch.upper() + " core",
-        env_id=args.env, epochs=args.demo_episodes, device=args.device)
+        env_id=args.env, epochs=args.demo_episodes, device=args.device,
+        parent_dir_printable_version=logger.parent_dir_printable_version)
 
     # create RL environment
-    env_to_wrap = gym.make(args.env)
-    env = Monitor(env_to_wrap, logger.demo_dir, force=True)
+    env = gym.make(args.env)
+    env = Monitor(env, logger.demo_dir, force=True)
 
     # create the TD3 agent
     agent = Agent(env=env, env_id=args.env, actor_critic=MLPActorCritic, arch=args.arch, activation=args.activation,
@@ -54,11 +56,10 @@ if __name__ == '__main__':
                   device=args.device, export_configs=args.export_configs, load_checkpoint=args.load_checkpoint,
                   mu=args.mu, sigma=args.sigma, noise_dist=args.noise_dist, theta=args.theta, buffer_arch=args.buffer_arch,
                   target_noise=args.target_noise, noise_clip=args.noise_clip, policy_delay=args.policy_delay,
-                  steps_per_epoch=args.steps_per_epoch, update_every=args.update_every)
+                  steps_per_epoch=args.steps_per_epoch, update_every=args.update_every, demo=True)
 
     agent.load(agent_checkpoint_path=agent.load_checkpoint)
 
     test(agent=agent, demo_episodes=args.demo_episodes)
     
     env.close()
-    env_to_wrap.close()

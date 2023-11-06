@@ -2,7 +2,7 @@
 import sys
 sys.path.append('../')
 
-import gym
+import gymnasium as gym
 
 # https://github.com/openai/gym/blob/master/gym/core.py
 # For more: https://github.com/openai/gym/tree/master/gym/wrappers

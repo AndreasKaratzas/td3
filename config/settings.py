@@ -1,4 +1,10 @@
 
+import sys
+sys.path.append('../')
+
+import numpy as np
+
+
 FORMAT = ('%9s', '%13s', '%9s',
           '%9s', '%12s', '%12s', 
           '%12s', '%12s', '%12s')
@@ -11,8 +17,16 @@ NAMES = [
     "loss_q"
 ]
 
+NAMES_DICT = {
+    "length": np.inf,
+    "reward": -np.inf,
+    "q_val": -np.inf,
+    "loss_pi": np.inf,
+    "loss_q": np.inf
+}
+
 OPERATORS_STR = [
-    "greater",
+    "lower",
     "greater",
     "greater",
     "lower",
@@ -20,9 +34,9 @@ OPERATORS_STR = [
 ]
 
 OPERATORS = [
-    lambda a, b: a > b,
-    lambda a, b: a > b,
-    lambda a, b: a > b,
     lambda a, b: a < b,
+    lambda a, b: a > b,
+    lambda a, b: a > b,
+    lambda a, b: np.abs(a) < np.abs(b),
     lambda a, b: a < b
 ]

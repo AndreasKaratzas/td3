@@ -13,5 +13,9 @@ def test(agent: Agent, demo_episodes: int = None):
             state, reward, done, _ = agent.test_env.step(agent.act(state))
             episode_return += reward
             episode_length += 1
-        agent.metrics[agent.metric_dict["reward"]].add(episode_return)
-        agent.metrics[agent.metric_dict["length"]].add(episode_length)
+        if not agent.demo:
+            agent.metrics[agent.metric_dict["reward"]].add(episode_return)
+            agent.metrics[agent.metric_dict["length"]].add(episode_length)
+    if agent.demo:
+        agent.env.close()
+        agent.test_env.close()

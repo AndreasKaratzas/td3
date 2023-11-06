@@ -24,13 +24,13 @@ class HardLogger(logging.Logger):
         self.name = Path(exp_name + '_' + self.datetime_tag) if exp_name is not None else Path(self.datetime_tag)
         self.logger = logging.getLogger(__name__)
 
-        self.parent_dir = self.export_data_path / self.name if not demo else Path(output_dir)
+        self.parent_dir = self.export_data_path / self.name if not demo else Path(output_dir).parents[0]
         self.project_path = os.path.abspath(os.path.join(__file__, output_dir))
 
         self.parent_dir_printable_version = str(os.path.abspath(
-            self.parent_dir)).replace(':', '').replace('/', ' > ')
+            self.parent_dir)).replace(':', '').replace('\\', ' > ')
         self.project_path_printable_version = str(
-            self.project_path).replace(':', '').replace('/', ' > ')
+            self.project_path).replace(':', '').replace('\\', ' > ')
 
         self.model_dir = self.parent_dir / "model"
         self.model_dir.mkdir(parents=True, exist_ok=True)
@@ -81,34 +81,43 @@ class ProgressStatus:
         self.format = format
         self.operators = operators
     
-    def set(self, metrics: Dict[str]):
+    def set(self, metrics):
         for _metric in self.names:
             self.status.__dict__[_metric] = metrics[_metric]
 
     def update(self):
         for idx, _metric in enumerate(self.names):
             if self.operators[idx](self.status.__dict__[_metric], self.register.__dict__[_metric]):
+                self.register.__dict__[_metric] = self.status.__dict__[_metric]
                 self.flags[idx] = 1
             elif self.status.__dict__[_metric] == self.register.__dict__[_metric]:
                 self.flags[idx] = 0
             else:
+                self.register.__dict__[_metric] = self.status.__dict__[_metric]
                 self.flags[idx] = -1
         
     def progress(self):
         self.str = ""
-        self.str += self.format[0]
 
-        for metric in range(1, self.n_elements):
+        # fixed metrics
+        self.str += f"{self.format[0]}"
+        self.str += f"{self.format[1]}"
+        self.str += f"{self.format[2]}"
+        self.str += f"{self.format[3]}"
+
+        # agent tailored metrics (e.g reward {ddpg, td3}, success {her}, length {ddpg, td3, her}, e.t.c)
+        for metric in range(self.n_elements):
             if self.flags[metric] == 1:
-                self.str += f"{colorstr(options=['green'], string_args=list([self.format[metric]]))}"
+                self.str += f"{colorstr(options=['green'], string_args=list([self.format[metric + 4]]))}"
             elif self.flags[metric] == 0:
-                self.str += self.format[metric]
+                self.str += self.format[metric + 4]
             elif self.flags[metric] == -1:
-                self.str += f"{colorstr(options=['red'], string_args=list([self.format[metric]]))}"
+                self.str += f"{colorstr(options=['red'], string_args=list([self.format[metric + 4]]))}"
 
+        # reset progress flags
         self.flags = np.zeros(shape=(self.n_elements))
     
-    def mem_desc(self):
+    def mem_desc(self, cuda_mem):
         self.desc = 'M'
         if len(str(cuda_mem)) - 1 > 6:
             cuda_mem = round(cuda_mem / 1E3, 3)
@@ -128,10 +137,10 @@ class ProgressStatus:
         self.msg = self.msg + (f'{metrics["ram_util"]}',)
 
         # agent tailored metrics (e.g reward {ddpg, td3}, success {her}, length {ddpg, td3, her}, e.t.c)
-        for _metric in range(4, self.n_elements):
+        for _metric in range(5, self.n_elements + 5):
             self.msg = self.msg + \
                 (f'{self.get_metric(metrics=metrics, idx=_metric):12.3g}',)
-
+        
         # finally, print out the compiled progress message 
         print((self.str) % self.msg)
 
@@ -143,9 +152,16 @@ class ProgressStatus:
 
     def compile(self, metrics, show_cuda):
         self.set(metrics)
-        self.update()
+        
+        if self.is_first:
+            self.is_first = False
+            for _metric in self.names:
+                self.register.__dict__[_metric] = self.status.__dict__[_metric]
+        else:
+            self.update()
+        
         self.progress()
-        self.mem_desc()
+        self.mem_desc(metrics["cuda_mem"])
         self.build_msg(metrics, show_cuda)
 
         return self.sync_hard_logger()

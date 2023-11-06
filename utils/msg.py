@@ -32,17 +32,14 @@ def print_test_message(
         env_id: str, 
         epochs: int, 
         device: str,
-        parent_dir_printable_version: str, 
-        project_path_printable_version: str
+        parent_dir_printable_version: str
     ):
 
     print(f"\n\n\t\t    Evaluating a {colorstr(options=['red', 'underline'], string_args=list([agent]))}\n"
             f"\t\t      in {colorstr(options=['red', 'underline'], string_args=list([env_id]))} environment for {colorstr(options=['red', 'underline'], string_args=list([str(epochs)]))} episodes using \n"
             f"\t\t                 a {colorstr(options=['red', 'underline'], string_args=list([device.upper()])) + ' enabled device' if 'cuda' in device.lower() else colorstr(options=['red', 'underline'], string_args=list([device.upper()]))}."
-            f"\n\n\t               The experiment logger is uploaded locally at: \n"
-            f"  {colorstr(options=['blue', 'underline'], string_args=list([parent_dir_printable_version]))}."
             f"\n\n\t\t                Project absolute path is:\n\t"
-            f"{colorstr(options=['blue', 'underline'], string_args=list([project_path_printable_version]))}.\n\n")
+            f"{colorstr(options=['blue', 'underline'], string_args=list([parent_dir_printable_version]))}.\n\n")
 
 
 def info():

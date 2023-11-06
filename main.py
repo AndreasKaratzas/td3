@@ -2,14 +2,14 @@
 import sys
 sys.path.append('./')
 
-import gym
+import gymnasium as gym
 
-from utils.msg import info
 from lib.agent import Agent
 from src.train import train
 from src.args import arguments
-from src.model import MLPActorCritic
 from utils.logger import HardLogger
+from src.model import MLPActorCritic
+from utils.msg import info, print_training_message
 from utils.functions import parse_configs, update_args
 
 
@@ -32,10 +32,12 @@ if __name__ == '__main__':
         exp_name=args.name
     )
 
-    logger.print_training_message(
+    print_training_message(
         agent="TD3 with " + ("Priority Experience Replay" if args.buffer_arch == 'priority' else "Random Experience Replay") + " and " + args.arch.upper() + " core", 
         env_id=args.env, epochs=args.epochs, device=args.device, elite_metric=args.elite_criterion, 
-        auto_save=(args.elite_criterion.lower() != 'none'))
+        auto_save=(args.elite_criterion.lower() != 'none'),
+        parent_dir_printable_version=logger.parent_dir_printable_version,
+        project_path_printable_version=logger.project_path_printable_version)
     
     # create RL environment
     env = gym.make(args.env)

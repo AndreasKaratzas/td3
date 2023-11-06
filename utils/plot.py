@@ -30,8 +30,7 @@ def build_log_dataframe(log_f_name):
             prev_cols[2]: 'avg_q_val', 
             prev_cols[3]: 'loss_actor', 
             prev_cols[4]: 'loss_critic'
-        }, 
-        inplace=True
+        }
     )
 
 

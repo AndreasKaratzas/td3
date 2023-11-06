@@ -2,6 +2,7 @@
 import sys
 sys.path.append('../')
 
+import ast
 import torch
 import numpy as np
 import torch.nn as nn
@@ -47,8 +48,11 @@ class MLPQFunction(nn.Module):
 class MLPActorCritic(nn.Module):
 
     def __init__(self, observation_space, action_space, hidden_sizes=(256,256),
-                 activation=nn.ReLU, extractor='mlp'):
+                 activation=nn.ReLU, arch='mlp'):
         super().__init__()
+
+        if isinstance(hidden_sizes, str):
+            hidden_sizes = ast.literal_eval(hidden_sizes)
 
         obs_dim = observation_space.shape[0]
         act_dim = action_space.shape[0]

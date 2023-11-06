@@ -12,15 +12,15 @@ from src.test import test
 from lib.agent import Agent
 from utils.plot import compile_plots
 from utils.logger import ProgressStatus
-from src.scaler import scale_action, unscale_action
-from config.settings import FORMAT, NAMES, OPERATORS
+from common.scaler import scale_action, unscale_action
+from config.settings import FORMAT, NAMES_DICT, OPERATORS
 
 
 def train(agent: Agent):
 
     # initialize logger placeholders
     epoch_time = tnt.AverageValueMeter()
-    report = ProgressStatus(format=FORMAT, names=NAMES, operators=OPERATORS)
+    report = ProgressStatus(format=FORMAT, names=NAMES_DICT, operators=OPERATORS)
     ep_start = time.time()
     init_msg = f"{'Epoch':>9}{'epoch_time':>13}{'gpu_mem':>9}{'ram_util':>9}{'avg_length':>12}{'avg_reward':>12}{'avg_q_val':>12}{'loss_actor':>12}{'loss_critic':>12}"
     print("\n\n" + init_msg)
@@ -60,7 +60,7 @@ def train(agent: Agent):
         done = False if episode_length == agent.max_ep_len else done
 
         # Store experience to replay buffer
-        agent.cache(state, buffer_action, reward, next_state, done)
+        agent.cache(state, next_state, buffer_action, reward, done)
 
         # Super critical, easy to overlook step: make sure to update
         # most recent observation!
@@ -68,6 +68,7 @@ def train(agent: Agent):
 
         # End of trajectory handling
         if done or (episode_length == agent.max_ep_len):
+            # print(f"Training episode just finished in timestep {episode_length} with reward {episode_return}")
             state, episode_return, episode_length = agent.env.reset(), 0, 0
             agent.noise_fn.reset()
 
@@ -100,7 +101,7 @@ def train(agent: Agent):
                 "cuda_mem": round(torch.cuda.memory_reserved() /
                                   1E6, 3) if agent.device.type == 'cuda' else 0,
                 "ram_util": psutil.virtual_memory().percent,
-                "length": agent.metrics[agent.metric_dict["length"]].avg,
+                "length": np.ceil(agent.metrics[agent.metric_dict["length"]].avg).astype(int),
                 "reward": agent.metrics[agent.metric_dict["reward"]].avg,
                 "q_val": agent.metrics[agent.metric_dict["q_val"]].avg,
                 "loss_pi": agent.metrics[agent.metric_dict["loss_pi"]].avg,

@@ -1,7 +1,8 @@
 
-import numpy as np
 import sys
 sys.path.append('../')
+
+import numpy as np
 
 
 def scale_action(action_space, action: np.ndarray) -> np.ndarray:

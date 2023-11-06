@@ -3,7 +3,7 @@ import sys
 sys.path.append('../')
 
 import os
-import gym
+import gymnasium as gym
 import torch
 import itertools
 import numpy as np
@@ -32,7 +32,7 @@ class Agent:
                  max_ep_len=1000, demo_episodes=10, load_checkpoint='model.pth', beta=0.6, elite_criterion='avg_q_val',
                  debug_mode=False, seed=0, prior_eps=1e-6, mu=0.0, sigma=0.1, noise_dist='uniform', update_every=10,
                  target_noise=0.2, noise_clip=0.5, policy_delay=2, arch='mlp', activation='relu', hidden_sizes=[256, 256],
-                 steps_per_epoch=2500):
+                 steps_per_epoch=2500, demo=False):
 
         # initialize envs
         self.env_id = env_id
@@ -53,7 +53,8 @@ class Agent:
         self.prior_eps = prior_eps
         self.noise_dist = noise_dist.lower()
 
-        # auxiliary hyperparameters
+        # auxiliary hyper parameters
+        self.demo = demo
         self.seed = seed
         self.name = name
         self.auto_save = auto_save
@@ -105,7 +106,7 @@ class Agent:
 
         # set max episode length
         self.max_ep_len = max_ep_len
-        self.total_steps = self.max_ep_len * (epochs - 1)
+        self.total_steps = self.steps_per_epoch * (epochs - 1)
 
         # Action limit for clamping: critically, assumes all dimensions share the same bound!
         self.act_limit = self.env.action_space.high[0]
@@ -183,15 +184,14 @@ class Agent:
         self.replay_size = replay_size
 
         # save the experiment configuration
-        if export_configs:
+        if export_configs and not demo:
             self.config = build_experiment_configs(self)
             self.logger.export_yaml(d=self.config, filename=name)
 
     def _setup(self):
-        selection_name, selection_metric = '', ''
+        selection_name = ''
         if len(self.elite_criterion.split('_')) > 1:
-            selection_name, selection_metric = '_'.join(self.elite_criterion.split(
-                '_')[1:]), self.elite_criterion.split('_')[0]
+            selection_name = '_'.join(self.elite_criterion.split('_')[1:])
 
         # setup progress metrics
         self.chkpt_cntr = 0
@@ -287,7 +287,7 @@ class Agent:
         return state, action, reward, next_state, done, weights, indices
 
     # Set up function for computing TD3 Q-losses
-    def compute_loss_q(self, state, next_state, action, reward, done, weights):
+    def compute_loss_q(self, state, action, reward, next_state, done, weights):
         
         # Get current Q-values estimates for each critic network
         current_critic_a = self.online.critic_a(state, action)
@@ -349,7 +349,7 @@ class Agent:
             current_critic_a.shape[-1], 1), current_critic_b.view(current_critic_b.shape[-1], 1)), dim=1)
         q_val = torch.mean(
             q_val, dim=1, keepdim=True).detach().cpu().numpy().squeeze(1)
-
+    
         return loss_critic, td_error, np.mean(q_val)
 
     # Set up function for computing TD3 pi loss
@@ -399,7 +399,7 @@ class Agent:
         state, action, reward, next_state, done, weights, indices = \
             self.recall()
         
-        q_val, td_error = self.update(
+        td_error, q_val = self.update(
             timestep, state, action, reward, next_state, done, weights)
         
         self.metrics[self.metric_dict["q_val"]].add(q_val)
@@ -408,7 +408,7 @@ class Agent:
             # PER: update priorities
             loss_for_prior = td_error.detach().cpu().numpy()
             new_priorities = np.abs(loss_for_prior) + self.prior_eps
-            self.priority_replay.update_priorities(indices, new_priorities)
+            self.buffer.update_priorities(indices, new_priorities)
 
             # PER: increase beta
             fraction = min(self.epoch / self.epochs, 1.0)
@@ -443,11 +443,11 @@ class Agent:
         self.actor_optimizer.load_state_dict(ckp.get('actor_optimizer'))
         self.critic_optimizer.load_state_dict(ckp.get('critic_optimizer'))
 
-        self.metrics[self.metric_dict["length"]] = ckp.get('_length')
-        self.metrics[self.metric_dict["reward"]] = ckp.get('_reward')
-        self.metrics[self.metric_dict["q_val"]] = ckp.get('_q_val')
-        self.metrics[self.metric_dict["loss_actor"]] = ckp.get('_loss_actor')
-        self.metrics[self.metric_dict["loss_critic"]] = ckp.get('_loss_critic')
+        self.metrics[self.metric_dict["length"]].reg = ckp.get('_length')
+        self.metrics[self.metric_dict["reward"]].reg = ckp.get('_reward')
+        self.metrics[self.metric_dict["q_val"]].reg = ckp.get('_q_val')
+        self.metrics[self.metric_dict["loss_pi"]].reg = ckp.get('_loss_actor')
+        self.metrics[self.metric_dict["loss_q"]].reg = ckp.get('_loss_critic')
 
         # Sync progress metrics
         for metric in self.metrics:
@@ -458,8 +458,8 @@ class Agent:
             f"\n\t * {self.metrics[self.metric_dict['reward']].avg:7.3f} mean accumulated test reward"
             f"\n\t * {self.metrics[self.metric_dict['length']].avg:7.3f} mean test episode length"
             f"\n\t * {self.metrics[self.metric_dict['q_val']].avg:7.3f} mean Q value achieved"
-            f"\n\t * {self.metrics[self.metric_dict['loss_actor']].avg:7.3f} mean actor model loss"
-            f"\n\t * {self.metrics[self.metric_dict['loss_critic']].avg:7.3f} mean critic model loss")
+            f"\n\t * {self.metrics[self.metric_dict['loss_pi']].avg:7.3f} mean actor model loss"
+            f"\n\t * {self.metrics[self.metric_dict['loss_q']].avg:7.3f} mean critic model loss")
 
     def store(self):
 
@@ -473,17 +473,17 @@ class Agent:
                 'target_critic_b': self.target.critic_b.state_dict(),
                 'actor_optimizer': self.actor_optimizer.state_dict(),
                 'critic_optimizer': self.critic_optimizer.state_dict(),
-                '_reward': self.metrics[self.metric_dict['reward']],
-                '_length': self.metrics[self.metric_dict['length']],
-                '_q_val': self.metrics[self.metric_dict['q_val']],
-                '_loss_actor': self.metrics[self.metric_dict['loss_actor']],
-                '_loss_critic': self.metrics[self.metric_dict['loss_critic']]
+                '_reward': self.metrics[self.metric_dict['reward']].reg,
+                '_length': self.metrics[self.metric_dict['length']].reg,
+                '_q_val': self.metrics[self.metric_dict['q_val']].reg,
+                '_loss_actor': self.metrics[self.metric_dict['loss_pi']].reg,
+                '_loss_critic': self.metrics[self.metric_dict['loss_q']].reg
             }, os.path.join(
                 self.checkpoint_dir,
                 f"epoch_{self.epoch:05d}-" + 
                 f"avg_reward{self.metrics[self.metric_dict['reward']].avg:07.3f}-" +
                 f"ep_length{self.metrics[self.metric_dict['length']].avg:07.3f}-" +
                 f"avg_q_val{self.metrics[self.metric_dict['q_val']].avg:07.3f}-" + 
-                f"loss_actor_{self.metrics[self.metric_dict['loss_actor']].avg:07.3f}-" +
-                f"loss_critic_{self.metrics[self.metric_dict['loss_critic']].avg:07.3f}.pth"
+                f"loss_actor_{self.metrics[self.metric_dict['loss_pi']].avg:07.3f}-" +
+                f"loss_critic_{self.metrics[self.metric_dict['loss_q']].avg:07.3f}.pth"
             ))

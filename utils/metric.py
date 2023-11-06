@@ -29,6 +29,7 @@ class Metric:
         assert self.comp_operator in ['lower', 'lower_eq', 'greater', 'greater_eq']
 
         self.reset(reset_elite=True)
+        self.comp_operator_fn = self.operator()
 
     def reset(self, reset_elite: bool = False):
         self.min = np.inf
@@ -42,21 +43,22 @@ class Metric:
     def operator(self):
         if self.comp_operator == 'greater':
             return lambda a, b: a > b
-        if self.comp_operator == 'less':
+        if self.comp_operator == 'lower':
             return lambda a, b: a < b
         if self.comp_operator == 'greater_eq':
             return lambda a, b: a >= b
-        if self.comp_operator == 'less_eq':
+        if self.comp_operator == 'lower_eq':
             return lambda a, b: a <= b
         raise NotImplementedError()
     
     def select(self):
+        self.update()
         if self.selection_metric in ['avg', 'mean']:
-            return self.avg_fn
+            return self.avg
         if self.selection_metric == 'min':
-            return self.min_fn
+            return self.min
         if self.selection_metric == 'max':
-            return self.max_fn
+            return self.max
         raise NotImplementedError()
     
     def add(self, value):
@@ -97,7 +99,7 @@ class Metric:
             return True
         
         register = self.select()
-        if self.operator(register, self.elite):
+        if self.comp_operator_fn(register, self.elite):
             self.elite = register
             return True
         

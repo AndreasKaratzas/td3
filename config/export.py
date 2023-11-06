@@ -17,8 +17,8 @@ def build_experiment_configs(agent):
             },
         'td3':
             {
-                'extractor': str(agent.hidden_sizes),
-                'arch': agent.extractor,
+                'hidden_sizes': str(agent.hidden_sizes),
+                'arch': agent.arch,
                 'activation': agent.activation,
                 'pi_lr': agent.lr_actor,
                 'q_lr': agent.lr_critic,
