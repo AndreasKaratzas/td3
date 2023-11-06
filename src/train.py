@@ -87,7 +87,7 @@ def train(agent: Agent):
             # Update benchmark metric
             agent.epoch = epoch
             ep_end = time.time()
-            epoch_time.update(ep_end - ep_start)
+            epoch_time.update(torch.tensor(ep_end - ep_start))
 
             # Update progress metrics
             for metric in agent.metrics:
