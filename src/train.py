@@ -50,7 +50,7 @@ def train(agent: Agent):
             action_space=agent.env.action_space, action=scaled_action)
 
         # Step the env
-        next_state, reward, done, _ = agent.env.step(action)
+        next_state, reward, done, truncated, info = agent.env.step(action)
         episode_return += reward
         episode_length += 1
 

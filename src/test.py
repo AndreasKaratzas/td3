@@ -10,7 +10,7 @@ def test(agent: Agent, demo_episodes: int = None):
         state, done, episode_return, episode_length = agent.test_env.reset(seed=agent.seed), False, 0, 0
         while not(done or (episode_length == agent.max_ep_len)):
             # Take deterministic actions at test time
-            state, reward, done, _ = agent.test_env.step(agent.act(state))
+            state, reward, done, truncated, info = agent.test_env.step(agent.act(state))
             episode_return += reward
             episode_length += 1
         if not agent.demo:
