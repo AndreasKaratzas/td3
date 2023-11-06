@@ -6,7 +6,7 @@ import time
 import torch
 import psutil
 import numpy as np
-import torchnet.meter as tnt
+import torcheval.metrics as tnt
 
 from src.test import test
 from lib.agent import Agent
@@ -19,7 +19,7 @@ from config.settings import FORMAT, NAMES_DICT, OPERATORS
 def train(agent: Agent):
 
     # initialize logger placeholders
-    epoch_time = tnt.AverageValueMeter()
+    epoch_time = tnt.Mean()
     report = ProgressStatus(format=FORMAT, names=NAMES_DICT, operators=OPERATORS)
     ep_start = time.time()
     init_msg = f"{'Epoch':>9}{'epoch_time':>13}{'gpu_mem':>9}{'ram_util':>9}{'avg_length':>12}{'avg_reward':>12}{'avg_q_val':>12}{'loss_actor':>12}{'loss_critic':>12}"
@@ -87,7 +87,7 @@ def train(agent: Agent):
             # Update benchmark metric
             agent.epoch = epoch
             ep_end = time.time()
-            epoch_time.add(ep_end - ep_start)
+            epoch_time.update(ep_end - ep_start)
 
             # Update progress metrics
             for metric in agent.metrics:
@@ -97,7 +97,7 @@ def train(agent: Agent):
             msg = report.compile(metrics={
                 "epoch": epoch,
                 "epochs": agent.epochs,
-                "bench": round(epoch_time.mean, 3),
+                "bench": round(epoch_time.compute(), 3),
                 "cuda_mem": round(torch.cuda.memory_reserved() /
                                   1E6, 3) if agent.device.type == 'cuda' else 0,
                 "ram_util": psutil.virtual_memory().percent,
