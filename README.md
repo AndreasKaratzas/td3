@@ -26,6 +26,9 @@ pip install chardet
 
 ### Usage
 
+```bash
+python main.py --env 'MountainCarContinuous-v0' --max-ep-len 1000 --hidden-sizes 256 256 256 --learning-starts 1000 --device 'cuda' --debug-mode --name 'MountainCarContinuous-v0' --auto-save --info --logger-name 'MountainCarContinuous-v0' --checkpoint-dir 'data/experiments' --batch-size 256
+```
 
 ### Demo
 
